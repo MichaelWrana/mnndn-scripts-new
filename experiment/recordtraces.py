@@ -5,6 +5,8 @@ import time
 
 # FIREFOX
 from playwright.sync_api import sync_playwright
+from playwright._impl._errors import TimeoutError
+
 # MININDN PACKAGES
 from mininet.log import setLogLevel, info
 from minindn.minindn import Minindn
@@ -50,10 +52,14 @@ if __name__ == "__main__":
     experiment_dir = next_experiment_dir(RESULT_DATA_DIR)
     experiment_dir.mkdir(parents=True, exist_ok=True)
 
-    visited=0
-    for idx, row in webpage_list.iterrows():
+    #special_row = [{"domain":"apache.org", "load_result":1, "replay_result":1, "server_assignment":"s8"}]
 
-        if visited >= 7:
+    visited=0
+    needed_timeout=0
+    for idx, row in webpage_list.iterrows():
+    #for idx, row in enumerate(special_row):
+
+        if visited >= 100:
             break
 
         if row["load_result"] != 1 or row["replay_result"] != 1:
@@ -80,7 +86,7 @@ if __name__ == "__main__":
             os.environ.pop(k, None)
         os.environ["HOME"] = "/root"
 
-        server_processes, client_threads = start_background_traffic(ndn.net.hosts, 40, 100, server_obj, url)
+        #server_processes, client_threads = start_background_traffic(ndn.net.hosts, 40, 100, server_obj, url)
 
         pu = ndn.net["pu"]
         tcpdump_proc = start_packet_recording(pu, "pu-eth0", f"{experiment_dir.absolute()}/{url}")
@@ -92,7 +98,7 @@ if __name__ == "__main__":
                 extra_http_headers={"Accept-Encoding": "identity"},
             )
 
-            ctx.route_from_har(har_path.absolute(), not_found="abort")
+            ctx.route_from_har(har_path.absolute(), not_found="abort", update="False")
             
             ndnreplayer = NDNReplayer(
                 ndn_host=pu,
@@ -103,14 +109,27 @@ if __name__ == "__main__":
             )
 
             ctx.route("**/*", ndnreplayer.ndn_handler)
-            
+
             page = ctx.new_page()
-            page.goto(f"https://www.{url}", timeout=0)
 
-            page.wait_for_load_state("domcontentloaded", timeout=0)
-
-            ctx.close()
-            browser.close()
+            try:
+                page.goto(f"https://www.{url}", timeout=REPLAY_TIMEOUT)
+                page.wait_for_load_state("load", timeout=REPLAY_TIMEOUT)
+            except TimeoutError:
+                print("Timeout on Replay.")
+                needed_timeout += 1
+                pass
+            finally:
+                try:
+                    if ctx:
+                        ctx.close()
+                except Exception:
+                    pass
+                try:
+                    if browser:
+                        browser.close()
+                except Exception:
+                    pass
         
         print(f"Finished visitng {url}...cleaning up")
 
@@ -119,14 +138,13 @@ if __name__ == "__main__":
         for proc in server_process_list:
             safe_stop_process(proc)
 
-        stop_background_traffic(server_processes, client_threads)
+        #stop_background_traffic(server_processes, client_threads)
+
+        os.system("killall -15 ndnputchunks")
 
         visited+=1
     
+    print(f"Visited {visited} webpages over ndn with {needed_timeout} timeouts")
     print(f"Done in {time.time()-start_time:.2f} sec... cleaning up\n")
 
     ndn.stop()
-        
-
-
-

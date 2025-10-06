@@ -1,6 +1,7 @@
 import os
 import pathlib
 import pandas as pd
+import shutil
 
 from playwright.sync_api import sync_playwright
 
@@ -23,8 +24,11 @@ for i, row in webpage_list.iterrows():
     if row["load_result"] == 1: # don't access a website for a second time
         continue
 
-    if webpage_list["load_result"].sum() >= 10: # stop after X websites
+    if webpage_list["load_result"].sum() >= 200: # stop after X websites
         break
+
+    if row["domain"] == "twitter.com": # re-direct to x.com (dont want same website twice)
+        continue
 
     url = row["domain"]
     print(f"[INFO] Trying to load {url}")
@@ -34,8 +38,6 @@ for i, row in webpage_list.iterrows():
     har_path = webpage_dir / f"{url}.har"
     har_config_path = webpage_dir / f"{url}_har_config.pkl"
     
-    # browser = None
-    # ctx = None
     try:
         with sync_playwright() as p:
             browser = p.firefox.launch(headless=True)
@@ -47,19 +49,21 @@ for i, row in webpage_list.iterrows():
                 extra_http_headers={"Accept-Encoding": "identity"},
             )
             page = ctx.new_page()
-            page.goto(f"https://www.{url}", wait_until="networkidle")
+            page.goto(f"https://www.{url}")
 
-            print(f"[SUCCESS] {url} loaded")
-            webpage_list.loc[i, "load_result"] = 1
+            page.wait_for_load_state("load")
 
             ctx.close()
             browser.close()
 
             parse_har(webpage_dir, url, har_path, har_config_path)
 
+            print(f"[SUCCESS] {url} loaded")
+            webpage_list.loc[i, "load_result"] = 1
+
     except Exception as e:
         print(f"[FAIL] {url} not loaded. \n")
-        webpage_dir.rmdir()
+        shutil.rmtree(webpage_dir)
         print(e)
     finally:
         try:
