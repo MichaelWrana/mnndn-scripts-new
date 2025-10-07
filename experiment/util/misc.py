@@ -1,13 +1,12 @@
 import pickle
 import csv
+import time
 
 from pathlib import Path
 from difflib import SequenceMatcher
 
 class DummyReplayer:
-    def __init__(self, webpage_dir, har_path, har_config_path):
-        self.webpage_dir = webpage_dir
-        self.har_path = har_path
+    def __init__(self, har_config_path):
         with har_config_path.open('rb') as f:
             self.har_config = pickle.load(f)
 
@@ -28,13 +27,15 @@ class DummyReplayer:
 
     def dummy_handler(self, route):
 
+        #print(len(self.har_config))
+
         resource_path = self.match_url(route.request.url)
 
         if resource_path is not None:
             print(f"Resource file successfully found: {resource_path}")
             #print(f"Requesting {resource_path.resolve()} from NDN. Successful")
         else:
-            raise Exception(f"Unable to replay a request: {route.request.url}")
+            pass
         
         route.fallback()
 

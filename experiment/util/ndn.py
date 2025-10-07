@@ -5,6 +5,9 @@ from difflib import SequenceMatcher
 import subprocess
 import pathlib
 import csv
+import threading
+import json
+import time
 
 from util.misc import *
 
@@ -113,6 +116,33 @@ def host_website(server_obj, server_prefix, har_config, verbose=True):
     
     return file_process_list
 
+def make_dns_request(user, dns, query, answer):
+
+    dns_answer = {
+        "name": f"{query}",
+        "type": f"A",
+        "ttl": 300,
+        "data": answer
+    }
+
+    dns.cmd(f"echo '{json.dumps(dns_answer)}' > answer.txt")
+
+    p = safe_putchunks(
+        dns,
+        f"ndn/{dns.name}-site/{dns.name}/{query}",
+        "answer.txt"
+    )  
+
+    safe_catchunks(
+        user,
+        f"ndn/{dns.name}-site/{dns.name}/{query}",
+        "/dev/null",
+    )
+
+    p.kill()
+
+    return
+
 class NDNReplayer:
     def __init__(self, ndn_host, server_prefix, webpage_name, har_config, log_file=None):
         self.ndn_host = ndn_host
@@ -120,9 +150,6 @@ class NDNReplayer:
         self.webpage_name = webpage_name
         self.har_config = har_config
         self.log_file = log_file
-        
-        ndn_host.cmd(f"mkdir -p {webpage_name}")
-
 
     def match_url(self, browser_url_request):
         exact_match = [path for path, har_url in self.har_config.items() if har_url == browser_url_request]
@@ -143,15 +170,15 @@ class NDNReplayer:
         resource_path = self.match_url(route.request.url)
 
         if resource_path is not None:
+            print(f"Trying to cat {resource_path.name}")
             _ = safe_catchunks(
                 host = self.ndn_host,
                 network_address = f"{self.server_prefix}/{resource_path.name}",
-                file_location = f"{self.webpage_name}/{resource_path.name}",
+                file_location = "/dev/null",
                 verbose = self.log_file,
-                print_header=True
+                print_header=False
             )
-            #print(f"Requesting {resource_path.resolve()} from NDN. Successful")
         else:
-            raise Exception(f"Unable to replay a request: {route.request.url}")
-        
+            pass
+
         route.fallback()

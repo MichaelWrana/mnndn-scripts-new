@@ -63,6 +63,7 @@ def main():
                     help=f"IPv4 address to treat as local host (default: {TARGET_IP_DEFAULT})")
     # add this argument (near the other argparse.add_argument calls)
     ap.add_argument("--out-dir", default="default/", help="Subfolder name inside each experiment_* to write outputs")
+    ap.add_argument("--base-increase",type=int ,default=0, help="Increase all experiment #s by this value (used to merge results across different VMs)")
 
     
     args = ap.parse_args()
@@ -70,6 +71,7 @@ def main():
     root: Path = args.root
     target_ip: str = args.target_ip
     out_dir = Path(args.out_dir)
+    base_increase = args.base_increase
 
     if not root.is_dir():
         raise SystemExit(f"Error: {root} is not a directory")
@@ -92,7 +94,7 @@ def main():
             continue
 
         for i, pcap_path in enumerate(pcaps):        
-            out_name = f"site_{i}_trace_{j}.txt"     
+            out_name = f"site_{i}_trace_{j + base_increase}.txt"     
             out_path = out_dir / out_name
             process_pcap(pcap_path, out_path, target_ip)
             print(out_name)
@@ -103,6 +105,15 @@ if __name__ == "__main__":
 '''
 DEFENSE COMMANDS (COPY-PASTE)
 FRONT:
-    sudo python main.py ../../nopet_nodef_static -format .txt -c t1 
+    python main.py ../../nopet_nodef_static -format .txt -c t1 
+
+WTFPAD:
+    python main.py ../../nopet_nodef_static -c normal_rcv 
+
+TAMARAW:
+    python tamaraw.py ../../nopet_nodef_static
+
+REGULATOR:
+    python regulator_sim.py ../../nopet_nodef_static results/nopet_regulator_static
 
 '''

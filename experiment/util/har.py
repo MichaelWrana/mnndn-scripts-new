@@ -12,6 +12,9 @@ def parse_har(webpage_dir, webpage_url, har_path, har_config_path):
     url_to_file_id = {}
     rid = 0
 
+    if len(entries) < 20:
+        raise Exception("Website too small...skipping")
+
     for e in entries:
         req = e.get("request")
         resp = e.get("response")

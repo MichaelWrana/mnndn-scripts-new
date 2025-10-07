@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     Minindn.cleanUp()
     Minindn.verifyDependencies()
-    ndn = Minindn(topoFile="line.conf")
+    ndn = Minindn(topoFile="line2.conf")
     ndn.start()
 
     print("Starting Routing Daemon on Nodes ...\n")
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     print(f"Found Routes after {time.time()-start_time:.2f}sec\n")
 
-    url = "apple.com"
+    url = "microsoft.com"
     har_config_path = SITE_DATA_DIR / f"{url}/{url}_har_config.pkl"
     with har_config_path.open('rb') as f:
         har_config = pickle.load(f)
@@ -45,15 +45,25 @@ if __name__ == '__main__':
     target_server = ndn.net["j"]
     server_process_list = host_website(target_server, f"ndn/{target_server}-site/{target_server}", har_config)
 
-    ndn.net["a"].name = "bb"
-    ndn.net["c"].name = "bbb"
+    #make_dns_request(ndn.net["a"], ndn.net["h"], url, "j")
 
-    server_processes, client_threads = start_background_traffic(ndn.net.hosts, 3, 1000, target_server, url)
+    #make_dns_request(ndn.net["a"], ndn.net["dns"], url, server_name)
 
-    time.sleep(10)
+    server_processes, client_threads = start_background_traffic(
+                ndn.net.hosts,
+                num_bg_users=40,
+                avg_interval_ms=6000,
+                max_resources=50,
+                target_server=target_server,
+                target_url=url
+            )
+
+    time.sleep(30)
 
     stop_background_traffic(server_processes, client_threads)
 
+
+    #os.system("killall -15 ndnputchunks")
 
     #bg_data = find_large_files(pathlib.Path("webpage_data"))
 

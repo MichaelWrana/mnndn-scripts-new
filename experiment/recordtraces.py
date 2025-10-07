@@ -2,6 +2,7 @@ import os
 import pathlib
 import pandas as pd
 import time
+import argparse
 
 # FIREFOX
 from playwright.sync_api import sync_playwright
@@ -14,23 +15,45 @@ from minindn.util import MiniNDNCLI
 from minindn.apps.app_manager import AppManager
 from minindn.apps.nfd import Nfd
 from minindn.helpers.ndn_routing_helper import NdnRoutingHelper
-# MY HELPERS
 
+# MY HELPERS
 from util.ndn import *
 from util.constant import *
 from util.misc import *
 from util.bgtraffic import *
 
+def parse_args():
+    p = argparse.ArgumentParser(
+        description="This is the 'big one' which actually simulates everything over NDN",
+        epilog="Additionally Requires input files with locations specified in constant.py\n SITE_DATA_DIR:output folder to dump webpage recordings\n TOP_SITES_PATH: List of domains to visit (Expecting a csv with a header line, urls slugified under 'domain' column)\nRESULT_DATA_DIR: folder where output pcaps will be dumped.  BG_LOG: folder where logs created from background users will be dumped"
+        )
+
+    p.add_argument("--config", type=pathlib.Path,default=NETWORK_CONFIG_PATH, help="Location of network mininet config file. For correct behaviour naming convention is: Users must be named u0,...,ui.  Servers must be named s0,...,si.  ANDaNA relays must be named r0,...,ri.  Target user must be named pu and DNS server must be named dns.  ")
+    p.add_argument("--dns", action="store_true", help="When set, the user will issue NDN-DNS queries to find server locations")
+    p.add_argument("--bgtraffic", action="store_true", help="When set, up to 40 users will periodically fill the network with random data.")
+    p.add_argument("--maxreplay", type=int, default=100, help="Will skip websites that have been replayed this many times.  (Mainly used for open-world data) (default=100)")
+    p.add_argument("--maxpages", type=int, default=100, help="Maximum number of webpages to visit (default=100)")
+    p.add_argument("--timeout", type=int, default=40000, help="Maximum time waiting for page to load in ms (default=30000)")
+    p.add_argument("--overwrite", action="store_true", help="When set, overwrites existing records and website traces with new recording.  DOES NOT delete pcaps due to high risk. (default=False)")
+
+    args = p.parse_args()
+
+    return p, args
+
 
 if __name__ == "__main__":
     setLogLevel('info')
 
-
+    parser, args = parse_args()
+    network_config_path = args.config
+    max_pages = args.maxpages
+    max_replay = args.maxreplay
+    timeout = args.timeout
 
     Minindn.cleanUp()
     Minindn.verifyDependencies()
     os.system("sudo rm -rf /tmp/minindn")
-    ndn = Minindn(topoFile=NETWORK_CONFIG_DIR.absolute())
+    ndn = Minindn(parser=parser, topoFile=network_config_path.absolute())
     ndn.start()
 
     print("Starting Routing Daemon on Nodes ...\n")
@@ -48,21 +71,28 @@ if __name__ == "__main__":
 
     webpage_list = pd.read_csv(TOP_SITES_PATH)
 
+    if args.overwrite:
+        webpage_list["replay_count"] = 0
+        os.system(f"sudo rm {BG_LOG}/*.conf")
+
+    if "replay_count" not in webpage_list.columns:
+        webpage_list["replay_count"] = 0
+
     RESULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
     experiment_dir = next_experiment_dir(RESULT_DATA_DIR)
     experiment_dir.mkdir(parents=True, exist_ok=True)
 
-    #special_row = [{"domain":"apache.org", "load_result":1, "replay_result":1, "server_assignment":"s8"}]
-
     visited=0
     needed_timeout=0
     for idx, row in webpage_list.iterrows():
-    #for idx, row in enumerate(special_row):
 
-        if visited >= 100:
+        if visited >= max_pages:
             break
 
         if row["load_result"] != 1 or row["replay_result"] != 1:
+            continue
+
+        if row["replay_count"] >= max_replay:
             continue
         
         url = row["domain"]
@@ -86,7 +116,15 @@ if __name__ == "__main__":
             os.environ.pop(k, None)
         os.environ["HOME"] = "/root"
 
-        #server_processes, client_threads = start_background_traffic(ndn.net.hosts, 40, 100, server_obj, url)
+        if args.bgtraffic:
+            server_processes, client_threads = start_background_traffic(
+                ndn.net.hosts,
+                num_bg_users=40,
+                avg_interval_ms=6000,
+                max_resources=50,
+                target_server=server_obj,
+                target_url=url
+            )
 
         pu = ndn.net["pu"]
         tcpdump_proc = start_packet_recording(pu, "pu-eth0", f"{experiment_dir.absolute()}/{url}")
@@ -112,9 +150,12 @@ if __name__ == "__main__":
 
             page = ctx.new_page()
 
+            if args.dns:
+                make_dns_request(pu, ndn.net["dns"], url, server_name)
+
             try:
-                page.goto(f"https://www.{url}", timeout=REPLAY_TIMEOUT)
-                page.wait_for_load_state("load", timeout=REPLAY_TIMEOUT)
+                page.goto(f"https://www.{url}", timeout=timeout)
+                page.wait_for_load_state("load", timeout=timeout)
             except TimeoutError:
                 print("Timeout on Replay.")
                 needed_timeout += 1
@@ -135,16 +176,27 @@ if __name__ == "__main__":
 
         safe_stop_process(tcpdump_proc)
 
-        for proc in server_process_list:
-            safe_stop_process(proc)
+        #for proc in server_process_list:
+        #    safe_stop_process(proc)
 
-        #stop_background_traffic(server_processes, client_threads)
+        if args.bgtraffic:
+            for stop,_ in client_threads:
+                stop.set()
 
+        os.system("killall -15 ndncatchunks")
         os.system("killall -15 ndnputchunks")
 
+        if args.bgtraffic:
+            for _, t in client_threads:
+                t.join()
+
+
+        row["replay_count"] = row["replay_count"] + 1
         visited+=1
     
     print(f"Visited {visited} webpages over ndn with {needed_timeout} timeouts")
     print(f"Done in {time.time()-start_time:.2f} sec... cleaning up\n")
+
+    webpage_list.to_csv(TOP_SITES_PATH, index=False)
 
     ndn.stop()
