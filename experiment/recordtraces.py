@@ -18,6 +18,7 @@ from minindn.helpers.ndn_routing_helper import NdnRoutingHelper
 
 # MY HELPERS
 from util.ndn import *
+from util.andana import *
 from util.constant import *
 from util.misc import *
 from util.bgtraffic import *
@@ -31,9 +32,10 @@ def parse_args():
     p.add_argument("--config", type=pathlib.Path,default=NETWORK_CONFIG_PATH, help="Location of network mininet config file. For correct behaviour naming convention is: Users must be named u0,...,ui.  Servers must be named s0,...,si.  ANDaNA relays must be named r0,...,ri.  Target user must be named pu and DNS server must be named dns.  ")
     p.add_argument("--dns", action="store_true", help="When set, the user will issue NDN-DNS queries to find server locations")
     p.add_argument("--bgtraffic", action="store_true", help="When set, up to 40 users will periodically fill the network with random data.")
+    p.add_argument("--andana", action="store_true", help="When set, primary user routes via andana relays.  Expects relays to be named as r0,...,r9")
     p.add_argument("--maxreplay", type=int, default=100, help="Will skip websites that have been replayed this many times.  (Mainly used for open-world data) (default=100)")
     p.add_argument("--maxpages", type=int, default=100, help="Maximum number of webpages to visit (default=100)")
-    p.add_argument("--timeout", type=int, default=40000, help="Maximum time waiting for page to load in ms (default=30000)")
+    p.add_argument("--timeout", type=int, default=45000, help="Maximum time waiting for page to load in ms (default=45000)")
     p.add_argument("--overwrite", action="store_true", help="When set, overwrites existing records and website traces with new recording.  DOES NOT delete pcaps due to high risk. (default=False)")
 
     args = p.parse_args()
@@ -75,8 +77,8 @@ if __name__ == "__main__":
         webpage_list["replay_count"] = 0
         os.system(f"sudo rm {BG_LOG}/*.conf")
 
-    if "replay_count" not in webpage_list.columns:
-        webpage_list["replay_count"] = 0
+    if "load_result" not in webpage_list.columns:
+        webpage_list["load_result"] = 0
 
     RESULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
     experiment_dir = next_experiment_dir(RESULT_DATA_DIR)
@@ -129,6 +131,13 @@ if __name__ == "__main__":
         pu = ndn.net["pu"]
         tcpdump_proc = start_packet_recording(pu, "pu-eth0", f"{experiment_dir.absolute()}/{url}")
 
+        if args.andana:
+            andana_relays = [ndn.net[f"r{i}"] for i in range(10)]
+            for user in [pu] + andana_relays:
+                user.cmd(f"mkdir -p andana/interest")
+                user.cmd(f"mkdir -p andana/data")
+
+
         with sync_playwright() as p:
             browser = p.firefox.launch(headless=True)
             ctx = browser.new_context(
@@ -137,14 +146,24 @@ if __name__ == "__main__":
             )
 
             ctx.route_from_har(har_path.absolute(), not_found="abort", update="False")
-            
-            ndnreplayer = NDNReplayer(
-                ndn_host=pu,
-                server_prefix=server_prefix,
-                webpage_name=url,
-                har_config=har_config,
-                log_file = experiment_dir / f"network_log.csv"
-            )
+
+            if args.andana:
+                ndnreplayer = AndanaReplayer(
+                    ndn_host = pu,
+                    server_prefix = server_prefix,
+                    webpage_name = url,
+                    har_config = har_config,
+                    relays = andana_relays,
+                    num_relays = 2
+                )
+            else:
+                ndnreplayer = NDNReplayer(
+                    ndn_host=pu,
+                    server_prefix=server_prefix,
+                    webpage_name=url,
+                    har_config=har_config,
+                    log_file = experiment_dir / f"network_log.csv"
+                )
 
             ctx.route("**/*", ndnreplayer.ndn_handler)
 
@@ -176,8 +195,10 @@ if __name__ == "__main__":
 
         safe_stop_process(tcpdump_proc)
 
-        #for proc in server_process_list:
-        #    safe_stop_process(proc)
+        if args.andana:
+            for user in [pu] + andana_relays:
+                user.cmd("sudo rm -rf andana/interest")
+                user.cmd("sudo rm -rf andana/data")
 
         if args.bgtraffic:
             for stop,_ in client_threads:
@@ -189,7 +210,6 @@ if __name__ == "__main__":
         if args.bgtraffic:
             for _, t in client_threads:
                 t.join()
-
 
         row["replay_count"] = row["replay_count"] + 1
         visited+=1
