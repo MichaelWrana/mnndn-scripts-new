@@ -211,7 +211,8 @@ if __name__ == "__main__":
             for _, t in client_threads:
                 t.join()
 
-        row["replay_count"] = row["replay_count"] + 1
+        
+        webpage_list.loc[i, "replay_count"] += 1
         visited+=1
     
     print(f"Visited {visited} webpages over ndn with {needed_timeout} timeouts")
