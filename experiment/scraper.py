@@ -1,6 +1,7 @@
 import os
 import pathlib
 import pandas as pd
+import numpy as np
 import shutil
 import argparse
 
@@ -31,7 +32,6 @@ timeout = args.timeout
 
 SITE_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-
 webpage_list = pd.read_csv(TOP_SITES_PATH)
 
 if args.overwrite:
@@ -40,12 +40,20 @@ if args.overwrite:
 elif "load_result" not in webpage_list.columns:
     webpage_list["load_result"] = 0
 
+mask = webpage_list["load_result"].eq(1).to_numpy()
+idxs = np.flatnonzero(mask)
+
+if idxs.size:
+    start_pos = idxs[-1]         # last row where load_result == 1
+else:
+    start_pos = 0                # no matches -> start from top
+
 
 for k in ("DISPLAY","WAYLAND_DISPLAY","XAUTHORITY","XDG_RUNTIME_DIR","DBUS_SESSION_BUS_ADDRESS"):
     os.environ.pop(k, None)
 os.environ["HOME"] = "/root"
 
-for i, row in webpage_list.iterrows():
+for i, row in webpage_list.iloc[start_pos:].iterrows():
 
     if row["load_result"] == 1: # don't access a website for a second time
         continue

@@ -39,7 +39,7 @@ if args.overwrite:
     webpage_list["server_assignment"] = "s?"
 
 if "replay_result" not in webpage_list.columns:
-    webpage_list["load_result"] = 0
+    webpage_list["replay_result"] = 0
 
 if "server_assignment" not in webpage_list.columns:
     webpage_list["server_assignment"] = "s?"
@@ -56,7 +56,7 @@ for i, row in webpage_list.iterrows():
     if row["load_result"] == 0: # don't try and replay a website that failed to load
         continue
 
-    if row["replay_result"] == 1: # dont replay again if we already know it worked
+    if row["replay_result"] == 1: # dont replay again if we already know it worked or failed
         continue
 
     if webpage_list["replay_result"].sum() >= max_pages: # stop after X websites
@@ -65,6 +65,10 @@ for i, row in webpage_list.iterrows():
     replay_attempts += 1
 
     url = row["domain"]
+
+    if "har" in url:
+        continue # skip urls with har to avoid naming conflicts with .har files (e.g. harvard.edu)
+
     print(f"[INFO] Trying to replay {url}")
 
     webpage_dir = SITE_DATA_DIR / f"{url}"
@@ -100,6 +104,7 @@ for i, row in webpage_list.iterrows():
         print(f"[FAIL] {url} replay failed. \n")
         if rmfail:
             shutil.rmtree(webpage_dir)
+        webpage_list.loc[i, "load_result"] = 0
         print(e)
     finally:
         try:
