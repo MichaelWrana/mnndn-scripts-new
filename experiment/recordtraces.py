@@ -7,6 +7,7 @@ import argparse
 # FIREFOX
 from playwright.sync_api import sync_playwright
 from playwright._impl._errors import TimeoutError
+from playwright._impl._errors import Error
 
 # MININDN PACKAGES
 from mininet.log import setLogLevel, info
@@ -178,6 +179,8 @@ if __name__ == "__main__":
             except TimeoutError:
                 print("Timeout on Replay.")
                 needed_timeout += 1
+                pass
+            except Error:
                 pass
             finally:
                 try:
