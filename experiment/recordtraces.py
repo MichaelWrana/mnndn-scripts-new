@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     visited=0
     needed_timeout=0
-    for idx, row in webpage_list.iterrows():
+    for i, row in webpage_list.iterrows():
 
         if visited >= max_pages:
             break
