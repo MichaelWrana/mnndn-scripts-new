@@ -135,9 +135,7 @@ if __name__ == "__main__":
         if args.andana:
             andana_relays = [ndn.net[f"r{i}"] for i in range(10)]
             for user in [pu] + andana_relays:
-                user.cmd(f"mkdir -p andana/interest")
-                user.cmd(f"mkdir -p andana/data")
-
+                user.cmd(f"mkdir -p andana")
 
         with sync_playwright() as p:
             browser = p.firefox.launch(headless=True)
@@ -200,8 +198,7 @@ if __name__ == "__main__":
 
         if args.andana:
             for user in [pu] + andana_relays:
-                user.cmd("sudo rm -rf andana/interest")
-                user.cmd("sudo rm -rf andana/data")
+                user.cmd("sudo rm -rf andana/")
 
         if args.bgtraffic:
             for stop,_ in client_threads:
