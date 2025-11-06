@@ -60,8 +60,9 @@ def send_andana_request(host, network_address, relay_list):
     # create the interest
     host.cmd(f"echo {network_address} > andana/interest/{sid}")
 
-    # encrypt layer-by-later for each relay:
-    # TODO
+   # encrypt layer-by-later for each relay
+    for relay in relay_list
+        client_obj.cmd(f'openssl enc -aes-256-cbc -salt -in andana/interest/{sid} -out andana/interest/{sid} -pass file:andana/{host.name}_{relay.name}.sharedkey')
 
     for i in range(len(andana_route)-1):
         current_user = andana_route[i]
@@ -70,7 +71,7 @@ def send_andana_request(host, network_address, relay_list):
         safe_catchunks(next_user, network_address=f"ndn/{current_user.name}-site/{current_user.name}/interest/{sid}", file_location=f"andana/interest/{sid}")
 
         # peel back one layer
-        # TODO
+        next_user.cmd(f'openssl enc -d -aes-256-cbc -in andana/interest/{sid} -out andana/interest/{sid} -pass file:andana/{host.name}_{next_user.name}.sharedkey')
 
 
     # issue the interest from exit relay
@@ -83,10 +84,11 @@ def send_andana_request(host, network_address, relay_list):
         safe_catchunks(next_user, network_address=f"ndn/{current_user.name}-site/{current_user.name}/data/{sid}", file_location=f"andana/data/{sid}")
 
         # add one layer
-        # TODO
+        next_user.cmd(f'openssl enc -aes-256-cbc -salt -in andana/data/{sid} -out andana/data/{sid} -pass file:andana/{host.name}_{next_user.name}.sharedkey')
 
-    # decrypt layer-by-layer in reverse order
-    # TODO
+    # decrypt layer-by-layer in reverse outgoing order
+    for relay in reversed(relay_list):
+        host.cmd(f'openssl enc -d -aes-256-cbc -in andana/data/{sid} -out andana/data/{sid} -pass file:{host.name}_{next_user.name}.sharedkey')
 
     return
 
@@ -98,8 +100,9 @@ def send_andana_request_faster(host, network_address, relay_list):
     # create the interest
     host.cmd(f"echo {network_address} > andana/interest/{sid}")
 
-    # encrypt layer-by-later for each relay:
-    # TODO
+    # encrypt layer-by-later for each relay
+    for relay in relay_list
+        client_obj.cmd(f'openssl enc -aes-256-cbc -salt -in andana/interest/{sid} -out andana/interest/{sid} -pass file:andana/{host.name}_{relay.name}.sharedkey')
 
     for i in range(len(andana_route)-1):
         current_user = andana_route[i]
@@ -108,7 +111,7 @@ def send_andana_request_faster(host, network_address, relay_list):
         safe_catchunks(next_user, network_address=f"ndn/{current_user.name}-site/{current_user.name}/interest/{sid}", file_location=f"andana/interest/{sid}")
 
         # peel back one layer
-        # TODO
+        next_user.cmd(f'openssl enc -d -aes-256-cbc -in andana/interest/{sid} -out andana/interest/{sid} -pass file:andana/{host.name}_{next_user.name}.sharedkey')
 
 
     # issue the interest from exit relay
@@ -121,10 +124,11 @@ def send_andana_request_faster(host, network_address, relay_list):
         safe_catchunks(next_user, network_address=f"ndn/{current_user.name}-site/{current_user.name}/data/{sid}", file_location=f"andana/data/{sid}")
 
         # add one layer
-        # TODO
+        next_user.cmd(f'openssl enc -aes-256-cbc -salt -in andana/data/{sid} -out andana/data/{sid} -pass file:andana/{host.name}_{next_user.name}.sharedkey')
 
-    # decrypt layer-by-layer in reverse order
-    # TODO
+    # decrypt layer-by-layer in reverse outgoing order
+    for relay in reversed(relay_list):
+        host.cmd(f'openssl enc -d -aes-256-cbc -in andana/data/{sid} -out andana/data/{sid} -pass file:{host.name}_{next_user.name}.sharedkey')
 
     return
 
