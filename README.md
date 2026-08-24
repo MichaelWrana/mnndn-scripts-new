@@ -4,8 +4,6 @@ Research code accompanying the paper **“Exposing and Mitigating Website Finger
 
 This repository contains the experimental testbed used to collect and process website-fingerprinting (WF) traffic in Named Data Networking (NDN). It combines browser-driven webpage replay, Mini-NDN network emulation, an ANDaNA reimplementation, packet capture and trace conversion, and trace-level WF defense simulators.
 
-The code is a research artifact rather than a packaged application. Scripts are intended to be run from the directories shown below and several paths and dataset dimensions are configured directly in source files.
-
 ## What is included
 
 - Construction of a Mini-NDN topology from RocketFuel ISP data.
