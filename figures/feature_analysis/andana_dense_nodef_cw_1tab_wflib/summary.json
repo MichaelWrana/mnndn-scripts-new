@@ -1,0 +1,15 @@
+{
+    "dataset": "andana_dense_nodef_cw_1tab_wflib",
+    "model": "TikTok",
+    "test_file": "test",
+    "feature": "DT",
+    "seq_len": 5000,
+    "num_classes": 100,
+    "num_samples": 1000,
+    "accuracy": 0.974,
+    "mean_margin": 0.9582471251487732,
+    "median_margin": 0.9998593330383301,
+    "mean_entropy": 0.04074734449386597,
+    "median_entropy": 0.0014935124199837446,
+    "embedding_dim": 512
+}
