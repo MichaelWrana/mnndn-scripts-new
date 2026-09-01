@@ -1,183 +1,110 @@
-# NDN Website-Fingerprinting Testbed
+# NDN Website-Fingerprinting Research Artifact
 
 Research code accompanying the paper **“Exposing and Mitigating Website Fingerprinting Threats in Named Data Networking.”**
 
-This repository contains the experimental testbed used to collect and process website-fingerprinting (WF) traffic in Named Data Networking (NDN). It combines browser-driven webpage replay, Mini-NDN network emulation, an ANDaNA reimplementation, packet capture and trace conversion, and trace-level WF defense simulators.
-
-## What is included
-
-- Construction of a Mini-NDN topology from RocketFuel ISP data.
-- A pre-generated Ebone (AS 1755) Mini-NDN configuration (`experiment/1755.conf`).
-- Browser-driven capture and replay of website resources using Firefox, Playwright, and HAR files.
-- Website retrieval over plain NDN and an experimental ANDaNA path.
-- Background traffic generation and packet capture at the target user.
-- Conversion of PCAP files to timestamp/direction WF traces.
-- Trace-level simulators for FRONT, WTF-PAD, Tamaraw, and RegulaTor.
-- Utilities for measuring NDN communication-semantics violations in defended traces.
-
-This snapshot does **not** include the paper's WF attack implementations, trained models, multi-tab trace generator, released datasets, VM image, or raw RocketFuel input files. The attack implementations evaluated in the paper come from their respective upstream projects.
+This repository contains the collection and analysis pipeline used to study website fingerprinting (WF) in Named Data Networking (NDN). It combines browser-based webpage capture and replay, a 257-node Mini-NDN topology, plain-NDN and experimental ANDaNA retrieval, packet-to-trace conversion, trace-level congestion-control defense variants, and scripts used to produce several paper figures and tables.
 
 ## Repository layout
 
 ```text
 .
+├── analyze_traces/
+│   ├── processpcap.py          # Convert target-user PCAPs to WF traces
+│   ├── convert.py              # Reformat and merge traces for attack toolkits
+│   └── util/                   # Trace loading and multi-tab processing helpers
+├── defenses/
+│   ├── cc-front/               # Congestion-control FRONT variant and evaluator
+│   ├── cc-regulator/           # Congestion-control RegulaTor variant
+│   ├── cc-tamaraw/             # Congestion-control Tamaraw variant and baseline
+│   └── cc-wtfpad/              # Congestion-control WTF-PAD implementation
 ├── experiment/
-│   ├── scraper.py              # Capture live pages and save HAR/resource data
-│   ├── verifyreplay.py         # Check that recorded pages can be replayed
-│   ├── recordtraces.py         # Run Mini-NDN experiments and record PCAPs
-│   ├── demo.py                 # Small, manually configured demonstration
-│   ├── 1755.conf               # Ebone AS 1755 experiment topology
-│   ├── line.conf               # Small line topology used by demo.py
-│   └── util/                   # NDN, ANDaNA, HAR, logging, and traffic helpers
-├── topology/
-│   ├── load_rocketfuel.py      # Generate a topology from RocketFuel files
-│   └── ...                     # Parsing, role assignment, and weighting helpers
-└── analyze_traces/
-    ├── processpcap.py          # PCAP to timestamp/direction conversion
-    ├── tracemetrics.py         # NDN-semantics violation metrics
-    ├── countviolations.py      # Additional violation-count utility
-    └── defenses/               # FRONT, WTF-PAD, Tamaraw, and RegulaTor
+│   ├── scraper.py              # Record live pages as HAR files and resources
+│   ├── verifyreplay.py         # Validate offline replay and assign NDN servers
+│   ├── recordtraces.py         # Orchestrate Mini-NDN collection experiments
+│   ├── logmetrics.py           # Summarize ndncatchunks transfer measurements
+│   ├── ow.sh / ow-clean.sh     # Open-world batch/cleanup helpers
+│   ├── top-1m.csv              # Ranked domain seed list
+│   └── util/                   # ANDaNA, NDN, HAR, DNS, and traffic helpers
+├── figures/
+│   ├── cka_heatmaps/           # CKA extraction, saved matrices, and heatmaps
+│   ├── feature_analysis/       # Feature extraction/visualization scripts
+│   ├── protocol_violations/    # NDN-semantics violation plots and source data
+│   └── tables_and_overheads/   # Notebook for reported tables and overheads
+└── topology/
+    ├── 1755.conf               # Pre-generated Ebone (AS 1755) topology
+    └── *.py                    # RocketFuel parsing, weighting, and role assignment
 ```
 
-## Environment
+## Code overview
 
-The collection pipeline is Linux-specific and requires root privileges because Mini-NDN/Mininet creates network namespaces and virtual interfaces. A dedicated VM is strongly recommended.
+### Topology construction
 
-### System dependencies
+`topology/` turns RocketFuel ISP maps and link-weight/latency data into a Mini-NDN configuration. The helpers load the graph, compute edge weights, rename nodes, and assign the experiment roles described in the paper. The included `1755.conf` contains 257 nodes: one target user (`pu`), 40 background users (`u0`–`u39`), 20 content servers (`s0`–`s19`), one NDN-DNS server (`dns`), 10 ANDaNA relays (`r0`–`r9`), and 185 neutral forwarders (`h*`). Raw RocketFuel inputs are not included.
 
-- [Mini-NDN](https://github.com/named-data/mini-ndn/blob/master/docs/install.rst), including Mininet, NFD, ndn-cxx, and ndn-tools.
-- `ndnputchunks` and `ndncatchunks` from ndn-tools.
-- `tcpdump`, OpenSSL, `xxd`, and standard Linux process utilities.
-- Firefox installed through [Playwright for Python](https://playwright.dev/python/docs/intro).
-- Python 3.12 or newer for the source as written. Exact dependency versions are not pinned in this snapshot.
+### Website capture and NDN experiments
 
-### Python dependencies
+`experiment/scraper.py` visits domains from `top-1m.csv`, records each page as a HAR archive, and extracts response bodies for later replay. `verifyreplay.py` checks that the captured page can be served offline and records a content-server assignment.
 
-Install the Python packages in the same environment from which the scripts will run. If Mini-NDN and Mininet were installed as system Python packages, a virtual environment created with `--system-site-packages` may be convenient.
+`recordtraces.py` coordinates the Mini-NDN experiment: it loads the topology, starts NFD routing, hosts captured resources, generates background traffic, replays a page in the browser, and records the target-user interface with `tcpdump`. It supports direct NDN retrieval and the paper's experimental ANDaNA mode. The ANDaNA helpers in `experiment/util/andana.py` establish X25519/HKDF-derived host–relay keys and onion-wrap Interests and returned Data across two relays selected from the ten-relay pool. The remaining files in `experiment/util/` provide NDN transfer, HAR matching, NDN-DNS, background-traffic, and process-management helpers.
 
-```bash
-python3 -m venv --system-site-packages .venv
-source .venv/bin/activate
-python -m pip install dpkt matplotlib networkx numpy pandas playwright scipy
-python -m playwright install firefox
-```
+### Trace processing
 
-The experiment scripts currently set `HOME=/root`; ensure that Playwright's Firefox installation is visible in the root-run experiment environment.
+`analyze_traces/processpcap.py` extracts packet timestamps and directions from experiment PCAPs. `analyze_traces/convert.py` and `analyze_traces/util/` load those traces, synthesize multi-tab overlaps, and emit formats expected by WFlib, CountMamba, and RF-style evaluation code.
 
-## Experimental workflow
+The downstream analysis and defense code uses tab-separated events with the following direction convention:
 
-Run the collection commands from `experiment/`, because the scripts resolve `top-1m.csv`, `1755.conf`, `webpage_data/`, and `generated_traces/` relative to the current working directory.
+- `+1`: real outgoing Interest
+- `-1`: real incoming Data
+- `+2`: dummy outgoing Interest
+- `-2`: dummy incoming Data
 
-### 1. Capture website resources
 
-`scraper.py` visits domains from `top-1m.csv`, saves a HAR recording and extracted response bodies under `webpage_data/`, and records progress by adding columns to `top-1m.csv`.
+### Congestion-control defense variants
 
-```bash
-cd experiment
-python scraper.py --maxpages 100 --timeout 30000
-```
+`defenses/` contains the four trace-level congestion-control (CC) variants evaluated in the paper:
 
-This step performs active requests to public websites. Use an appropriate crawl rate and comply with applicable policies and terms.
+- **CC-FRONT** adapts FRONT's random padding schedule and includes an evaluation helper.
+- **CC-WTF-PAD** applies adaptive-padding histograms while tracking NDN Interest/Data constraints.
+- **CC-Tamaraw** adapts Tamaraw's fixed-rate padding and also retains a local baseline Tamaraw script.
+- **CC-RegulaTor** adapts RegulaTor's burst and padding schedule to the CC setting.
 
-### 2. Verify offline replay
 
-```bash
-python verifyreplay.py --maxpages 100 --timeout 30000 --numservers 20
-```
+### Figure and table generation
 
-Successful pages receive a server assignment (`s0` through `s19`) in `top-1m.csv`. Only pages that load and replay successfully are eligible for trace collection.
+The exact figures shown in the paper can be generated from the scripts here.  We use cached outputs from the WF attacks and defenses.  If you want to generate them from scratch yourself, see [WF attacks](###-WF-attacks), [WF defenses](###-WF-defenses), and [dataset](###-Dataset)
 
-### 3. Collect PCAP traces over Mini-NDN
+`figures/cka_heatmaps/` stores CKA matrices and scripts for layer-similarity heatmaps. `figures/feature_analysis/` extracts and visualizes learned and k-Fingerprinting-style features. `figures/protocol_violations/` contains the plotting code and aggregate inputs for the NDN communication-semantics analysis. `figures/tables_and_overheads/` contains the notebook used for reported tables and overhead calculations.
 
-The supplied topology expects the following names:
 
-- target user: `pu`
-- DNS server: `dns`
-- background users: `u0`, `u1`, ...
-- ANDaNA relays: `r0` through `r9`
-- content servers: `s0`, `s1`, ...
+## NDN simulation setup
 
-Run the experiment from a root-capable Python environment:
+> **Status:** Detailed setup and execution instructions are forthcoming. The Mini-NDN collection environment has several system-level dependencies, so this section will be completed after a reproducible distribution format (for example, a container or VM image) is selected.
 
-```bash
-# Plain NDN with NDN-DNS and background traffic
-sudo -E "$(command -v python)" recordtraces.py \
-  --config 1755.conf \
-  --dns \
-  --bgtraffic \
-  --maxpages 100 \
-  --maxreplay 100
-```
+## Not included in this repository
 
-Add `--andana` to request page resources through two randomly selected relays. See [Known limitations](#known-limitations) before attempting this mode.
+### WF attacks
 
-Each run creates `generated_traces/experiment_<n>/`. Website captures are stored as `<domain>.pcap`; plain-NDN runs also write per-resource statistics to `network_log.csv`.
+We use existing open-source implementations of the following WF attacks in the paper.
 
-`recordtraces.py` currently fixes the target capture interface as `pu-eth0`, starts 40 background users, and uses a 6000 ms average request interval. Change the call to `start_background_traffic(...)` when reproducing a different traffic-density setting.
+* k-Fingerprinting: [code](https://github.com/jhayes14/k-FP)
+* Deep Fingerprinting: [code](https://github.com/FIND-Lab/Website-Fingerprinting-Library)
+* Tik-Tok: [code](https://github.com/FIND-Lab/Website-Fingerprinting-Library)
+* BAPM: [code](https://github.com/FIND-Lab/Website-Fingerprinting-Library)
+* ARES: [code](https://github.com/FIND-Lab/Website-Fingerprinting-Library)
+* TMWF: [code](https://github.com/FIND-Lab/Website-Fingerprinting-Library)
+* Robust Fingerprinting: [code](https://github.com/robust-fingerprinting/RF)
+* CountMamba: [code](https://github.com/SJTU-dxw/CountMamba-WF)
 
-## Convert PCAPs to WF traces
+### WF defenses
 
-Run the converter from `analyze_traces/`:
+We use existing open-source implementations of the following WF defenses in the paper.
 
-```bash
-cd ../analyze_traces
-python processpcap.py \
-  --root ../experiment/generated_traces \
-  --out-dir traces \
-  --target-ip 10.0.3.69
-```
+* FRONT: [code](https://github.com/websitefingerprinting/WebsiteFingerprinting)
+* WTF-PAD: [code](https://github.com/wtfpad/wtfpad)
+* RegulaTor: [code](https://github.com/jkhollandjr/RegulaTor)
+* Tamaraw: [code](https://github.com/websitefingerprinting/wfdef)
 
-The output files are named `site_<i>_trace_<j>.txt`, where `<j>` is the numeric experiment directory and `<i>` is the position of the alphabetically sorted PCAP within that directory. Use `--base-increase` when combining runs copied from separate machines.
 
-Each trace is tab-separated:
+### Dataset
 
-```text
-0.0000	1
-0.0012	-1
-0.0037	-1
-```
-
-Downstream tools expect `+1` for a real outgoing packet and `-1` for a real incoming packet. Defense simulators use `+2` and `-2` for dummy packets. Before a large conversion, inspect a known capture to verify that the selected target IP and observed direction polarity match this convention.
-
-## Defense simulators
-
-The simulators use relative imports and should be started from their own directories. Most expect closed-world filenames of the form `site_<site>_trace_<instance>.txt`.
-
-| Defense | Working directory | Example command |
-| --- | --- | --- |
-| FRONT | `analyze_traces/defenses/front` | `python main.py ../../traces -format .txt -c t1` |
-| WTF-PAD | `analyze_traces/defenses/wtfpad` | `python main.py ../../traces -c normal_rcv` |
-| Tamaraw | `analyze_traces/defenses/tamaraw` | `python tamaraw.py ../../traces` |
-| RegulaTor | `analyze_traces/defenses/regulator` | `python regulator_sim.py ../../traces/ results/ --n_processes 8` |
-
-FRONT, WTF-PAD, and Tamaraw create timestamped subdirectories under a local `results/` directory. Create the RegulaTor output directory before running it; its source and output path arguments should retain trailing slashes because the script concatenates filenames directly.
-
-Dataset sizes and defense parameters are configured in the following locations:
-
-- FRONT: `defenses/front/config.ini`
-- WTF-PAD: constants at the top of `defenses/wtfpad/main.py` and distributions in `config.ini`
-- Tamaraw: constants at the top of `defenses/tamaraw/tamaraw.py`
-- RegulaTor: command-line options in `defenses/regulator/regulator_sim.py`
-
-The defense directories contain the simulator sources present in this artifact. They should be treated as components used in the paper's trace-level analysis, rather than as deployable NDN defenses.
-
-## Analyze NDN communication violations
-
-Given a directory containing defended traces:
-
-```bash
-cd analyze_traces
-python tracemetrics.py defenses/front/results/<run-directory>
-python countviolations.py defenses/front/results/<run-directory>
-```
-
-`tracemetrics.py` reports three trace-level conditions used to inspect NDN compatibility: dummy data appearing before a dummy interest, more dummy interests than dummy data, and a large gap between the final positive- and negative-direction events. The timeout threshold in this snapshot is set directly in `tracemetrics.py`.
-
-## Topology generation
-
-The included `experiment/1755.conf` can be used directly. To regenerate it, place the required RocketFuel `.cch`, `.al`, latency, and weight files in the paths expected by `topology/load_rocketfuel.py`, then run:
-
-```bash
-cd topology
-python load_rocketfuel.py
-```
+The complete NDN, ANDaNA, open-world, and closed-world datasets used in the paper's evaluation containing 80,000 traces of 10,100 websites can be downloaded here: [dataset](https://nextcloud.cs.uwaterloo.ca/s/sadrgRWEeTQN3a8)
