@@ -138,7 +138,7 @@ class AndanaReplayer(NDNReplayer):
 
         if resource_path is not None:
             print(f"Trying to get {resource_path.name} over ANDaNA")
-            send_andana_request(
+            send_andana_request_fast(
                 host = self.ndn_host,
                 network_address = f"{self.server_prefix}/{resource_path.name}",
                 relay_list = chosen_relays,
