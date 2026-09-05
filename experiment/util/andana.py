@@ -61,7 +61,7 @@ def send_andana_request(host, network_address, relay_list):
     host.cmd(f"echo {network_address} > andana/interest/{sid}")
 
    # encrypt layer-by-later for each relay
-    for relay in relay_list
+    for relay in relay_list:
         client_obj.cmd(f'openssl enc -aes-256-cbc -salt -in andana/interest/{sid} -out andana/interest/{sid} -pass file:andana/{host.name}_{relay.name}.sharedkey')
 
     for i in range(len(andana_route)-1):
@@ -92,7 +92,7 @@ def send_andana_request(host, network_address, relay_list):
 
     return
 
-def send_andana_request(host, network_address, relay_list):
+def send_andana_request_fast(host, network_address, relay_list):
 
     sid = f"{time.time()}"
     andana_route = [host] + relay_list
