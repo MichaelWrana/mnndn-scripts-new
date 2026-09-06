@@ -12,7 +12,7 @@ Requested Badge(s):
 
 This artifact accompanies:
 
-> Michael Wrana, Anhelina Bodak, Ansh Dhingra, and Diogo Barradas. “Exposing and Mitigating Website Fingerprinting Threats in Named Data Networking.” *Proceedings on Privacy Enhancing Technologies*, accepted for 2027. The supplied accepted manuscript does not yet contain final issue or DOI metadata.
+> Michael Wrana, Anhelina Bodak, Ansh Dhingra, and Diogo Barradas. “Exposing and Mitigating Website Fingerprinting Threats in Named Data Networking.” *Proceedings on Privacy Enhancing Technologies*, accepted for 2027.
 
 The artifact provides the collection and analysis pipeline used for the paper’s website-fingerprinting (WF) study of Named Data Networking (NDN). It contains:
 
