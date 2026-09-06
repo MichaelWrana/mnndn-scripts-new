@@ -21,7 +21,6 @@ The artifact provides the collection and analysis pipeline used for the paper’
 - direct-NDN and experimental ANDaNA trace collection;
 - PCAP-to-WF-trace conversion and single-/multi-tab dataset conversion;
 - the CC-FRONT, CC-WTF-PAD, CC-Tamaraw, and CC-RegulaTor trace-level defenses;
-- NDN semantic-violation checks; and
 - cached intermediate results plus plotting notebooks/scripts for several paper figures and tables.
 
 The separately released dataset contains 80,000 traces of 10,100 unique webpages. For each of four configurations—NDN/ANDaNA crossed with sparse/dense background traffic—it contains 10,000 closed-world traces (100 monitored websites visited 100 times) and 10,000 open-world traces (10,000 unmonitored websites visited once).
