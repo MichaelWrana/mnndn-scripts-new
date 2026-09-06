@@ -61,7 +61,7 @@ Run the Mini-NDN collection path only in a fresh, dedicated Ubuntu virtual machi
 
 Two evaluation levels are supported.
 
-**Released-data/trace-level functional evaluation:** A laptop or VM with 4 CPU cores, 16 GB RAM, and at least 15 GB of free disk space is sufficient. A GPU is not required for dataset validation, conversion, defenses, semantic checks, or cached-result plotting. Training the external deep-learning WF attacks may benefit from a CUDA-capable GPU, follow the guidance in linked repositories.
+**Released-data/trace-level functional evaluation:** A laptop or VM with 4 CPU cores, 16 GB RAM, and at least 15 GB of free disk space is sufficient. Training the external deep-learning WF attacks may benefit from a CUDA-capable GPU, follow the guidance in linked repositories.
 
 **Mini-NDN functional test:** Use a fresh Ubuntu 24.04 standard VM with 4 CPU cores, 16 GB RAM, and a 40 GB disk, with unrestricted `sudo`.
 
@@ -71,7 +71,7 @@ Two evaluation levels are supported.
 
 The supported collection environment is Ubuntu 24.04. Python 3.12 is also required by the current source.
 
-PyTorch, WFlib, and trained checkpoints are needed only to regenerate learned features or CKA matrices from models. They are not needed to render the cached outputs, and the model/checkpoint artifacts are not included here. WF attack implementations and their own dependencies are external, as listed in [Experiment 3](#experiment-3-format-traces-and-run-wf-attacks).
+ WF attack implementations and their own dependencies are external, as listed in [Experiment 3](#experiment-3-format-traces-and-run-wf-attacks).
 
 The released dataset is documented in [Accessibility](#accessibility) and [Set Up the Environment](#set-up-the-environment).
 
