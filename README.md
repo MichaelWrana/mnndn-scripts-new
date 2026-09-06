@@ -430,19 +430,19 @@ The output should again be a tab-separated timestamp/direction trace.
 
 #### Main Result 1: A reusable large-scale NDN WF testbed and dataset
 
-The artifact implements live capture, deterministic offline replay, NDN/ANDaNA retrieval, background traffic, packet capture, and trace conversion. The paper uses it to collect 80,000 page loads for 10,100 unique webpages over four configurations on a 257-node topology (Sections 3 and 5.1). [Experiment 1](#experiment-1-validate-the-released-dataset) validates the released corpus, while [Experiment 2](#experiment-2-run-the-ndn-collection-pipeline) exercises the pipeline end to end at reduced scale.
+[Experiment 1](#experiment-1-validate-the-released-dataset) validates the released dataset and [Experiment 2](#experiment-2-run-the-ndn-collection-pipeline) exercises the pipeline end to end at reduced scale.
 
 #### Main Result 2: TCP/IP WF attacks remain highly effective on NDN and ANDaNA
 
-Across the undefended configurations, the paper reports 97.9%–99.8% single-tab accuracy and 81.2%–97.0% three-tab P@3, depending on attack and configuration (Table 2, Section 6.1). [Experiment 3](#experiment-3-format-traces-and-run-wf-attacks) prepares the exact released traces for the external attack implementations.
+[Experiment 3](#experiment-3-format-traces-and-run-wf-attacks) prepares the exact released traces for the external attack implementations.
 
 #### Main Result 3: NDN models learn a different representation from TCP/IP models
 
-Feature analysis indicates increased reliance on timing features in NDN, and Tik-Tok CKA shows strong within-NDN alignment but almost no NDN-to-TCP/IP alignment. [Experiment 5](#experiment-5-render-cached-figures-and-tables) renders the supplied matrices and feature summaries.
+[Experiment 5](#experiment-5-render-cached-figures-and-tables) renders the supplied matrices and feature summaries.
 
 #### Main Result 4: CC-aware defenses
 
-[Experiment 4](#experiment-4-apply-cc-defenses-and-check-ndn-semantics) produces attack-ready defended traces, [Experiment 3](#experiment-3-format-traces-and-run-wf-attacks) points to the attack evaluators, and [Experiment 5](#experiment-5-render-cached-figures-and-tables) renders the papers' results using cached data.
+[Experiment 4](#experiment-4-apply-cc-defenses-and-check-ndn-semantics) produces defended traces, and [Experiment 3](#experiment-3-format-traces-and-run-wf-attacks) prepares datasets for external WF attack evaluation
 
 ### Experiments
 
