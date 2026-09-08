@@ -303,69 +303,6 @@ cp -v topology/1755.conf experiment/1755.conf
 
 ### Testing the Environment
 
-#### Released-data checks
-
-Activate the virtual environment and move to the repository root:
-
-```bash
-cd /path/to/mnndn-scripts-new
-source .venv/bin/activate
-```
-
-Check syntax and imports:
-
-```bash
-python -m compileall -q analyze_traces defenses figures topology
-python - <<'PY'
-import dpkt
-import matplotlib
-import networkx
-import numpy
-import pandas
-import scipy
-import tqdm
-print("Analysis imports OK")
-PY
-```
-
-Expected output is `Analysis imports OK`, with no output from `compileall`.
-
-Verify archive contents:
-
-```bash
-find datasets -mindepth 1 -maxdepth 1 -type d | sort
-find datasets -mindepth 2 -maxdepth 2 -type f | wc -l
-wc -l datasets/andana_dense_nodef_cw_1tab/site_0_trace_0.txt
-head -n 5 datasets/andana_dense_nodef_cw_1tab/site_0_trace_0.txt
-```
-
-The first command should list the eight directories shown above and the second should print `80000`. The final command should show two tab-separated fields per line: a nonnegative relative timestamp and a direction such as `1` or `-1`.
-
-Run a four-trace conversion test:
-
-```bash
-mkdir -p formatted_traces
-cd analyze_traces
-python convert.py \
-  --tracescw ../datasets/andana_dense_nodef_cw_1tab \
-  --outdir ../formatted_traces \
-  --sites 2 \
-  --exp 2
-
-cd ..
-python - <<'PY'
-import numpy as np
-p = "formatted_traces/andana_dense_nodef_cw_1tab_wflib.npz"
-d = np.load(p)
-print(d["X"].shape, d["y"].shape)
-assert d["X"].shape == (4, 5000)
-assert d["y"].shape == (4,)
-print("Trace conversion OK")
-PY
-```
-
-Expected final output is `Trace conversion OK`.
-
 #### End-to-end Mini-NDN test
 
 First capture the first accessible website from `experiment/top-1m.csv`:
